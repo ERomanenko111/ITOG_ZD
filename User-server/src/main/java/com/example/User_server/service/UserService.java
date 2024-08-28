@@ -19,7 +19,7 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public String login(String username, String password) {
+    public String login(String fullName, String username, String password) {
         return username;
     }
 

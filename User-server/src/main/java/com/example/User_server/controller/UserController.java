@@ -22,7 +22,7 @@ public class UserController {
 
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody Map<String, String> credentials) {
-        return ResponseEntity.ok(userService.login(credentials.get("username"), credentials.get("password")));
+        return ResponseEntity.ok(userService.login(credentials.get("fullName"), credentials.get("username"), credentials.get("password")));
     }
 
     @PutMapping("/{id}")
