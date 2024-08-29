@@ -2,11 +2,13 @@ package com.example.Task_server.controller;
 
 import com.example.Task_server.model.Task;
 import com.example.Task_server.repository.TaskRepository;
+import com.example.User_server.Token.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,8 +18,17 @@ public class TaskController {
 
     @Autowired
     private TaskRepository taskRepository;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
     @PostMapping
-    public ResponseEntity<Task> createTask(@RequestBody Task task) {
+    public ResponseEntity<Task> createTask(@RequestBody Task task, @RequestHeader("Authorization") String token) {
+        String username = jwtUtil.extractUsername(token.substring(7)); // Удаляем "Bearer "
+        if(username == null || !jwtUtil.validateToken(token.substring(7), username)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
         try {
             Task savedTask = taskRepository.save(task);
             return ResponseEntity.ok(savedTask);
@@ -52,13 +63,14 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 
-
     @GetMapping(params = {"status", "from", "to"})
     public ResponseEntity<List<Task>> getTasksByStatusAndDate(
             @RequestParam String status,
             @RequestParam String from,
             @RequestParam String to) {
-        // logic to get tasks by status and date range
-        return null;
+        LocalDateTime fromDateTime = LocalDateTime.parse(from);
+        LocalDateTime toDateTime = LocalDateTime.parse(to);
+        List<Task> tasks = taskRepository.findByStatusAndDueDateBetween(status, fromDateTime, toDateTime);
+        return ResponseEntity.ok(tasks);
     }
 }

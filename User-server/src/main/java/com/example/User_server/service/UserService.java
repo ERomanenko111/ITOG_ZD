@@ -5,26 +5,51 @@ import com.example.User_server.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.example.User_server.Token.JwtUtil;
+
+import java.util.List;
+import java.util.Optional;
 
 @Service
 public class UserService {
+
     @Autowired
     private UserRepository userRepository;
 
-    public User register(User user) {
-        // хэширование пароля перед сохранением пользователя
-        String hashedPassword = new BCryptPasswordEncoder().encode(user.getPassword());
-        user.setPassword(hashedPassword);
+    private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+    public User register(User user) {
+        String hashedPassword = passwordEncoder.encode(user.getPassword());
+        user.setPassword(hashedPassword);
         return userRepository.save(user);
     }
 
-    public String login(String fullName, String username, String password) {
-        return username;
+    public String login(String username, String password) {
+        Optional<User> userOptional = userRepository.findByUsername(username);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            if (passwordEncoder.matches(password, user.getPassword())) {
+                return JwtUtil.generateToken(username); // Возвращаем токен
+            }
+        }
+        throw new RuntimeException("Invalid credentials");
     }
 
     public User updateUser(Long id, User user) {
-        // логика для обновления пользователя
-        return user;
+        return userRepository.findById(id).map(existingUser -> {
+            existingUser.setFullName(user.getFullName());
+            existingUser.setUsername(user.getUsername());
+            existingUser.setPassword(passwordEncoder.encode(user.getPassword())); // если пароль обновляется
+            existingUser.setRole(user.getRole());
+            return userRepository.save(existingUser);
+        }).orElse(null);
+    }
+
+    public void deleteUser(Long id) {
+        userRepository.deleteById(id);
+    }
+
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
     }
 }

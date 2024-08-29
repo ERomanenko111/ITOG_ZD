@@ -35,4 +35,5 @@ public class LogEntry {
         this.action = action;
         this.timestamp = LocalDateTime.now();
     }
+
 }
