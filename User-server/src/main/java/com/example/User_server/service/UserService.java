@@ -10,6 +10,9 @@ import com.example.User_server.Token.JwtUtil;
 import java.util.List;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 public class UserService {
 
@@ -18,18 +21,20 @@ public class UserService {
 
     private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
     public User register(User user) {
+        logger.info("Registering new user: {}", user.getUsername());
         String hashedPassword = passwordEncoder.encode(user.getPassword());
         user.setPassword(hashedPassword);
         return userRepository.save(user);
     }
-
     public String login(String username, String password) {
         Optional<User> userOptional = userRepository.findByUsername(username);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
             if (passwordEncoder.matches(password, user.getPassword())) {
-                return JwtUtil.generateToken(username); // Возвращаем токен
+                return JwtUtil.generateToken(user.getId().toString(), username); // Передайте userId в generateToken
             }
         }
         throw new RuntimeException("Invalid credentials");

@@ -4,10 +4,9 @@ import com.example.Logging_server.model.LogEntry;
 import com.example.Logging_server.repository.LogRepository;
 import com.example.User_server.Token.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -16,22 +15,25 @@ import java.util.List;
 @RestController
 @RequestMapping("/logs")
 public class LoggingController {
-
     @Autowired
     private LogRepository logRepository;
     @Autowired
     private JwtUtil jwtUtil;
 
     @PostMapping
+    @PreAuthorize("isAuthenticated()") // Требуется аутентификация
     public ResponseEntity<LogEntry> logAction(@RequestBody LogEntry logEntry, @RequestHeader("Authorization") String token) {
-        String username = jwtUtil.extractUsername(token.substring(7));
-        if(username == null || !jwtUtil.validateToken(token.substring(7), username)) {
+        String tokenWithoutBearer = token.startsWith("Bearer ") ? token.substring(7) : token;
+
+        String userIdFromToken = jwtUtil.extractUsername(tokenWithoutBearer);
+        if (userIdFromToken == null || !jwtUtil.validateToken(tokenWithoutBearer, userIdFromToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        if (logEntry.getUserId() == null || logEntry.getAction() == null) {
-            return ResponseEntity.badRequest().build();
+        if (logEntry.getUserId() == null || logEntry.getAction() == null || !logEntry.getUserId().toString().equals(userIdFromToken)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
+
         logEntry.setTimestamp(LocalDateTime.now());
         LogEntry savedLog = logRepository.save(logEntry);
         return ResponseEntity.ok(savedLog);
