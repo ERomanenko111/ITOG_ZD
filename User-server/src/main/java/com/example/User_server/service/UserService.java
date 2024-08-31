@@ -34,7 +34,7 @@ public class UserService {
         if (userOptional.isPresent()) {
             User user = userOptional.get();
             if (passwordEncoder.matches(password, user.getPassword())) {
-                return JwtUtil.generateToken(user.getId().toString(), username); // Передайте userId в generateToken
+                return JwtUtil.generateToken(user.getId(), username);// Передайте userId в generateToken
             }
         }
         throw new RuntimeException("Invalid credentials");

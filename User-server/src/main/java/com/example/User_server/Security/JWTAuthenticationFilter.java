@@ -16,8 +16,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-import static javax.crypto.Cipher.SECRET_KEY;
-
 @Component
 public class JWTAuthenticationFilter extends OncePerRequestFilter {
 
@@ -34,24 +32,22 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
             try {
-                String username = jwtUtil.extractUsername(token); // Извлекаем username
-                if (username != null && jwtUtil.validateToken(token, username)) { // Проверяем токен с username
-                    // Извлекаем userId из токена
-                    Claims claims = Jwts.parser()
-                            .setSigningKey(String.valueOf(SECRET_KEY))
-                            .parseClaimsJws(token)
-                            .getBody();
+                String username = jwtUtil.extractUsername(token);
+                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    Claims claims = Jwts.parser().setSigningKey(JwtUtil.SECRET_KEY).parseClaimsJws(token).getBody();
                     String userId = claims.get("userId", String.class);
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            userId,
-                            null,
-                            null
-                    );
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                    if (jwtUtil.validateToken(token, username)) {
+                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                userId,
+                                null,
+                                null
+                        );
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
                 }
             } catch (Exception e) {
-                // Обработка исключений (например, невалидный токен)
                 response.setStatus(HttpStatus.UNAUTHORIZED.value());
             }
         }

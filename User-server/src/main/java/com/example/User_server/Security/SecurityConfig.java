@@ -20,16 +20,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                .csrf().disable()
-                .authorizeHttpRequests()
-                .anyRequest().authenticated()
-                .and()
-                // Используйте addFilterBefore для JWTAuthenticationFilter
+                .csrf(c -> c.disable())
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/logs/**").hasRole("USER")
+                        .anyRequest().permitAll()
+                )
                 .addFilterBefore(new JWTAuthenticationFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class)
-                // Используйте addFilterBefore для JWTAuthorizationFilter
-                .addFilterBefore(new JWTAuthorizationFilter(jwtUtil), JWTAuthenticationFilter.class)
-                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .and()
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .build();
     }
 }

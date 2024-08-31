@@ -25,19 +25,23 @@ public class LoggingController {
     public ResponseEntity<LogEntry> logAction(@RequestBody LogEntry logEntry, @RequestHeader("Authorization") String token) {
         String tokenWithoutBearer = token.startsWith("Bearer ") ? token.substring(7) : token;
 
+        // Валидация и извлечение userId из токена
         String userIdFromToken = jwtUtil.extractUsername(tokenWithoutBearer);
         if (userIdFromToken == null || !jwtUtil.validateToken(tokenWithoutBearer, userIdFromToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
+        // Проверка userId из запроса и userId из токена
         if (logEntry.getUserId() == null || logEntry.getAction() == null || !logEntry.getUserId().toString().equals(userIdFromToken)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
+        // Установка времени и сохранение лога
         logEntry.setTimestamp(LocalDateTime.now());
         LogEntry savedLog = logRepository.save(logEntry);
         return ResponseEntity.ok(savedLog);
     }
+
 
     @GetMapping("/{userId}")
     public ResponseEntity<List<LogEntry>> getUserLogs(
