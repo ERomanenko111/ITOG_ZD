@@ -6,6 +6,7 @@ import com.example.User_server.Token.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -15,17 +16,19 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/tasks")
 public class TaskController {
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Autowired
     private TaskRepository taskRepository;
 
-    @Autowired
-    private JwtUtil jwtUtil;
-
     @PostMapping
+    @PreAuthorize("isAuthenticated()") // Требуется аутентификация
     public ResponseEntity<Task> createTask(@RequestBody Task task, @RequestHeader("Authorization") String token) {
-        String username = jwtUtil.extractUsername(token.substring(7)); // Удаляем "Bearer "
-        if(username == null || !jwtUtil.validateToken(token.substring(7), username)) {
+        String tokenWithoutBearer = token.startsWith("Bearer ") ? token.substring(7) : token;
+
+        String username = jwtUtil.extractUsername(tokenWithoutBearer);
+        if (username == null || !jwtUtil.validateToken(tokenWithoutBearer, username)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
