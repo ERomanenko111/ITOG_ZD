@@ -1,13 +1,18 @@
 package com.example.Task_server.controller;
 
 import com.example.Task_server.model.Task;
-import com.example.Task_server.repository.TaskRepository;
-import com.example.User_server.Token.JwtUtil;
+import com.example.Task_server.model.User;
+import com.example.Task_server.service.JwtService;
+import com.example.Task_server.service.TaskService;
+import com.example.Task_server.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,65 +20,71 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/tasks")
+@RequiredArgsConstructor
+@Tag(name = "Задачи")
 public class TaskController {
+    private final TaskService taskService;
     @Autowired
-    private JwtUtil jwtUtil;
+    private UserService userService;
 
-    @Autowired
-    private TaskRepository taskRepository;
 
-    @PostMapping
-    @PreAuthorize("isAuthenticated()") // Требуется аутентификация
-    public ResponseEntity<Task> createTask(@RequestBody Task task, @RequestHeader("Authorization") String token) {
-        String tokenWithoutBearer = token.startsWith("Bearer ") ? token.substring(7) : token;
+    @Operation(summary = "Получение всех задач")
+    @GetMapping("")
+    public ResponseEntity<List<Task>> getAllTasks() {
+        return ResponseEntity.ok(taskService.getAllTasks());
+    }
 
-        String username = jwtUtil.extractUsername(tokenWithoutBearer);
-        if (username == null || !jwtUtil.validateToken(tokenWithoutBearer, username)) {
+    @Operation(summary = "Получение задачи по ID")
+    @GetMapping("/{id}")
+    public ResponseEntity<Task> getTask(@PathVariable Long id) {
+        return ResponseEntity.ok(taskService.getTask(id));
+    }
+
+    @Operation(summary = "Получение активных задач")
+    @GetMapping("/active")
+    public ResponseEntity<List<Task>> getActiveTasks() {
+        return ResponseEntity.ok(taskService.getActiveTasks());
+    }
+
+    @Operation(summary = "Получение задач за период")
+    @GetMapping("/period")
+    public ResponseEntity<List<Task>> getTasksBetween(
+            @RequestParam("start") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime startDateTime,
+            @RequestParam("end") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime endDateTime) {
+        return ResponseEntity.ok(taskService.getTasksByPeriod(startDateTime, endDateTime));
+    }
+
+    @Operation(summary = "Создание задачи")
+    @PostMapping("/create")
+    public ResponseEntity<Task> createTask(@RequestBody Task task, @RequestHeader("Authorization") String authToken) {
+        try {
+            return ResponseEntity.ok(taskService.createTask(task, authToken));
+        } catch (Exception e) {
+            System.err.println("Error creating task: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-
-        try {
-            Task savedTask = taskRepository.save(task);
-            return ResponseEntity.ok(savedTask);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
     }
 
-    @GetMapping
-    public ResponseEntity<List<Task>> getAllTasks() {
-        List<Task> tasks = taskRepository.findAll();
-        return ResponseEntity.ok(tasks);
-    }
-
+    @Operation(summary = "Обновление задачи")
     @PutMapping("/{id}")
-    public ResponseEntity<Task> updateTask(@PathVariable Long id, @RequestBody Task task) {
-        Optional<Task> existingTask = taskRepository.findById(id);
-        if (existingTask.isPresent()) {
-            Task updatedTask = existingTask.get();
-            updatedTask.setText(task.getText());
-            updatedTask.setDueDate(task.getDueDate());
-            updatedTask.setStatus(task.getStatus());
-            return ResponseEntity.ok(taskRepository.save(updatedTask));
-        } else {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<Optional<Task>> updateTask(@PathVariable Long id, @RequestBody Task task, @RequestHeader("Authorization") String authToken) {
+        try {
+            return ResponseEntity.ok(taskService.updateTask(id, task, authToken));
+        } catch (Exception e) {
+            System.err.println("Error creating task: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
 
+    @Operation(summary = "Удаление задачи")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
-        taskRepository.deleteById(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping(params = {"status", "from", "to"})
-    public ResponseEntity<List<Task>> getTasksByStatusAndDate(
-            @RequestParam String status,
-            @RequestParam String from,
-            @RequestParam String to) {
-        LocalDateTime fromDateTime = LocalDateTime.parse(from);
-        LocalDateTime toDateTime = LocalDateTime.parse(to);
-        List<Task> tasks = taskRepository.findByStatusAndDueDateBetween(status, fromDateTime, toDateTime);
-        return ResponseEntity.ok(tasks);
+    public ResponseEntity<Void> deleteTask(@PathVariable Long id, @RequestHeader("Authorization") String authToken) {
+        try {
+            taskService.deleteTask(id, authToken);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            System.err.println("Error creating task: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
     }
 }
